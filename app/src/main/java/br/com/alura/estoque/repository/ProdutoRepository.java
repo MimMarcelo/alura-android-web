@@ -9,27 +9,29 @@ import br.com.alura.estoque.model.Produto;
 import br.com.alura.estoque.retrofit.EstoqueWeb;
 import br.com.alura.estoque.retrofit.service.ProdutoService;
 import retrofit2.Call;
+import retrofit2.Callback;
 import retrofit2.Response;
 
 public class ProdutoRepository {
 
-    private ProdutoDAO dao;
+    private final ProdutoDAO dao;
+    private final ProdutoService produtoService;
 
     public ProdutoRepository(ProdutoDAO dao) {
         this.dao = dao;
+        produtoService = new EstoqueWeb().getProdutoService();
     }
 
-    public void buscaProdutos(ProdutosListener listener) {
+    public void buscaProdutos(ProdutosListener<List<Produto>> listener) {
         new BaseAsyncTask<>(dao::buscaTodos,
                 resultado -> {
-                    listener.carregado(resultado);
+                    listener.sucesso(resultado);
                     buscaProdutosNaApi(listener);
                 })
                 .execute();
     }
 
-    private void buscaProdutosNaApi(ProdutosListener listener) {
-        ProdutoService produtoService = new EstoqueWeb().getProdutoService();
+    private void buscaProdutosNaApi(ProdutosListener<List<Produto>> listener) {
         Call<List<Produto>> call = produtoService.all();
 
         new BaseAsyncTask<>(() -> {
@@ -43,11 +45,43 @@ public class ProdutoRepository {
             return dao.buscaTodos();
         },
                 produtos -> {
-                    listener.carregado(produtos);
+                    listener.sucesso(produtos);
                 }).execute();
     }
 
-    public interface ProdutosListener {
-        void carregado(List<Produto> produtos);
+    public void salva(Produto produto, ProdutosListener<Produto> listener) {
+
+        Call<Produto> call = produtoService.save(produto);
+        call.enqueue(new Callback<Produto>() {
+            @Override
+            public void onResponse(Call<Produto> call, Response<Produto> response) {
+                if(response.isSuccessful()) {
+                    Produto produtoSalvo = response.body();
+                    if(produtoSalvo != null) {
+                        salvaInternamente(produtoSalvo, listener);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Produto> call, Throwable t) {
+                listener.falha("Não foi possível estabelecer conexão: " + t.getMessage());
+            }
+        });
+    }
+
+    private void salvaInternamente(Produto produto, ProdutosListener<Produto> listener) {
+        new BaseAsyncTask<>(() -> {
+            long id = dao.salva(produto);
+            return dao.buscaProduto(id);
+        },
+                listener::sucesso
+        )
+                .execute();
+    }
+
+    public interface ProdutosListener<T> {
+        void sucesso(T resposta);
+        void falha(String erro);
     }
 }

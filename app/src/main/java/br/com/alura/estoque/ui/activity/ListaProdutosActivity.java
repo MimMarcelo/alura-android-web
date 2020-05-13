@@ -30,6 +30,7 @@ public class ListaProdutosActivity extends AppCompatActivity {
     private static final String TITULO_APPBAR = "Lista de produtos";
     private ListaProdutosAdapter adapter;
     private ProdutoDAO dao;
+    private ProdutoRepository productRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,8 +44,18 @@ public class ListaProdutosActivity extends AppCompatActivity {
         EstoqueDatabase db = EstoqueDatabase.getInstance(this);
         dao = db.getProdutoDAO();
 
-        ProdutoRepository productRepository = new ProdutoRepository(dao);
-        productRepository.buscaProdutos(adapter::atualiza);
+        productRepository = new ProdutoRepository(dao);
+        productRepository.buscaProdutos(new ProdutoRepository.ProdutosListener<List<Produto>>() {
+            @Override
+            public void sucesso(List<Produto> resposta) {
+                adapter.atualiza(resposta);
+            }
+
+            @Override
+            public void falha(String erro) {
+                Toast.makeText(ListaProdutosActivity.this, erro, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void configuraListaProdutos() {
@@ -69,16 +80,20 @@ public class ListaProdutosActivity extends AppCompatActivity {
     }
 
     private void abreFormularioSalvaProduto() {
-        new SalvaProdutoDialog(this, this::salva).mostra();
-    }
+        new SalvaProdutoDialog(this, produto -> {
+            productRepository.salva(produto, new ProdutoRepository.ProdutosListener<Produto>() {
+                @Override
+                public void sucesso(Produto resposta) {
+                    adapter.adiciona(resposta);
+                }
 
-    private void salva(Produto produto) {
-        new BaseAsyncTask<>(() -> {
-            long id = dao.salva(produto);
-            return dao.buscaProduto(id);
-        }, produtoSalvo ->
-                adapter.adiciona(produtoSalvo))
-                .execute();
+                @Override
+                public void falha(String erro) {
+                    Toast.makeText(ListaProdutosActivity.this, erro, Toast.LENGTH_SHORT).show();
+                }
+            });
+        })
+                .mostra();
     }
 
     private void abreFormularioEditaProduto(int posicao, Produto produto) {
