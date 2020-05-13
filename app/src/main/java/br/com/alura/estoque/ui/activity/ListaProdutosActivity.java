@@ -16,6 +16,7 @@ import br.com.alura.estoque.asynctask.BaseAsyncTask;
 import br.com.alura.estoque.database.EstoqueDatabase;
 import br.com.alura.estoque.database.dao.ProdutoDAO;
 import br.com.alura.estoque.model.Produto;
+import br.com.alura.estoque.repository.ProdutoRepository;
 import br.com.alura.estoque.retrofit.EstoqueWeb;
 import br.com.alura.estoque.retrofit.service.ProdutoService;
 import br.com.alura.estoque.ui.dialog.EditaProdutoDialog;
@@ -42,34 +43,8 @@ public class ListaProdutosActivity extends AppCompatActivity {
         EstoqueDatabase db = EstoqueDatabase.getInstance(this);
         dao = db.getProdutoDAO();
 
-        buscaProdutos();
-    }
-
-    private void buscaProdutos() {
-        ProdutoService produtoService = new EstoqueWeb().getProdutoService();
-        Call<List<Produto>> call = produtoService.all();
-
-        new BaseAsyncTask<>(() -> {
-            try {
-                Response<List<Produto>> response = call.execute();
-                List<Produto> produtos = response.body();
-                return produtos;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return null;
-        },
-                produtos -> {
-            if(produtos != null) {
-                adapter.atualiza(produtos);
-            }
-            else{
-                Toast.makeText(this, "Lista não encontrada", Toast.LENGTH_SHORT).show();
-            }
-                }).execute();
-//        new BaseAsyncTask<>(dao::buscaTodos,
-//                resultado -> adapter.atualiza(resultado))
-//                .execute();
+        ProdutoRepository productRepository = new ProdutoRepository(dao);
+        productRepository.buscaProdutos(adapter::atualiza);
     }
 
     private void configuraListaProdutos() {
