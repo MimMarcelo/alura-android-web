@@ -11,7 +11,7 @@ public abstract class BaseCallback<T> implements Callback<T> {
     public abstract void onFail(String error);
 
     @Override
-    public final void onResponse(Call<T> call, Response<T> response) {
+    public void onResponse(Call<T> call, Response<T> response) {
         if(response.isSuccessful()) {
             T responseBody = response.body();
             if (responseBody != null) {

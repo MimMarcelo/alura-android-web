@@ -1,25 +1,27 @@
 package br.com.alura.estoque.repository;
 
-import java.io.IOException;
+import android.content.Context;
+
 import java.util.List;
 
 import br.com.alura.estoque.asynctask.BaseAsyncTask;
+import br.com.alura.estoque.database.EstoqueDatabase;
 import br.com.alura.estoque.database.dao.ProdutoDAO;
 import br.com.alura.estoque.model.Produto;
 import br.com.alura.estoque.retrofit.EstoqueWeb;
 import br.com.alura.estoque.retrofit.callback.BaseCallback;
+import br.com.alura.estoque.retrofit.callback.VoidCallback;
 import br.com.alura.estoque.retrofit.service.ProdutoService;
 import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class ProdutoRepository {
 
     private final ProdutoDAO dao;
     private final ProdutoService produtoService;
 
-    public ProdutoRepository(ProdutoDAO dao) {
-        this.dao = dao;
+    public ProdutoRepository(Context context) {
+        EstoqueDatabase db = EstoqueDatabase.getInstance(context);
+        dao = db.getProdutoDAO();
         produtoService = new EstoqueWeb().getProdutoService();
     }
 
@@ -90,6 +92,27 @@ public class ProdutoRepository {
             }
         });
 
+    }
+
+
+    public void remove(Produto produto, ProdutosListener<Void> listener) {
+
+        Call<Void> call = produtoService.remove(produto.getId());
+        call.enqueue(new VoidCallback() {
+            @Override
+            public void onSuccess(Void responseBody) {
+                new BaseAsyncTask<>(() -> {
+                    dao.remove(produto);
+                    return null;
+                }, listener::sucesso
+                ).execute();
+            }
+
+            @Override
+            public void onFail(String error) {
+                listener.falha(error);
+            }
+        });
     }
 
     private void salvaInternamente(Produto produto, ProdutosListener<Produto> listener) {

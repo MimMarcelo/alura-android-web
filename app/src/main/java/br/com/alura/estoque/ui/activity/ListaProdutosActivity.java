@@ -3,33 +3,24 @@ package br.com.alura.estoque.ui.activity;
 import android.os.Bundle;
 import android.widget.Toast;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.IOException;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import java.util.List;
 
 import br.com.alura.estoque.R;
-import br.com.alura.estoque.asynctask.BaseAsyncTask;
-import br.com.alura.estoque.database.EstoqueDatabase;
-import br.com.alura.estoque.database.dao.ProdutoDAO;
 import br.com.alura.estoque.model.Produto;
 import br.com.alura.estoque.repository.ProdutoRepository;
-import br.com.alura.estoque.retrofit.EstoqueWeb;
-import br.com.alura.estoque.retrofit.service.ProdutoService;
 import br.com.alura.estoque.ui.dialog.EditaProdutoDialog;
 import br.com.alura.estoque.ui.dialog.SalvaProdutoDialog;
 import br.com.alura.estoque.ui.recyclerview.adapter.ListaProdutosAdapter;
-import retrofit2.Call;
-import retrofit2.Response;
 
 public class ListaProdutosActivity extends AppCompatActivity {
 
     private static final String TITULO_APPBAR = "Lista de produtos";
     private ListaProdutosAdapter adapter;
-    private ProdutoDAO dao;
     private ProdutoRepository productRepository;
 
     @Override
@@ -41,10 +32,7 @@ public class ListaProdutosActivity extends AppCompatActivity {
         configuraListaProdutos();
         configuraFabSalvaProduto();
 
-        EstoqueDatabase db = EstoqueDatabase.getInstance(this);
-        dao = db.getProdutoDAO();
-
-        productRepository = new ProdutoRepository(dao);
+        productRepository = new ProdutoRepository(this);
         productRepository.buscaProdutos(new ProdutoRepository.ProdutosListener<List<Produto>>() {
             @Override
             public void sucesso(List<Produto> resposta) {
@@ -62,16 +50,21 @@ public class ListaProdutosActivity extends AppCompatActivity {
         RecyclerView listaProdutos = findViewById(R.id.activity_lista_produtos_lista);
         adapter = new ListaProdutosAdapter(this, this::abreFormularioEditaProduto);
         listaProdutos.setAdapter(adapter);
-        adapter.setOnItemClickRemoveContextMenuListener(this::remove);
-    }
+        adapter.setOnItemClickRemoveContextMenuListener(
+                ((posicao, produto) -> {
+                    productRepository.remove(produto, new ProdutoRepository.ProdutosListener<Void>() {
+                        @Override
+                        public void sucesso(Void resposta) {
+                            adapter.remove(posicao);
+                        }
 
-    private void remove(int posicao,
-                        Produto produtoRemovido) {
-        new BaseAsyncTask<>(() -> {
-            dao.remove(produtoRemovido);
-            return null;
-        }, resultado -> adapter.remove(posicao))
-                .execute();
+                        @Override
+                        public void falha(String erro) {
+                            Toast.makeText(ListaProdutosActivity.this, erro, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+        );
     }
 
     private void configuraFabSalvaProduto() {
